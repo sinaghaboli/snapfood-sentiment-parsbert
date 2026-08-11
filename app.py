@@ -1,7 +1,3 @@
-"""
-اپ Streamlit برای تحلیل احساسات کامنت‌های فارسی Snapfood با مدل ParsBERT Fine-tuned.
-این فایل را app.py نام‌گذاری کن و در ریشه‌ی ریپازیتوری گیت‌هابت قرار بده.
-"""
 
 import streamlit as st
 import torch
@@ -36,7 +32,6 @@ st.markdown(
 )
 
 MODEL_REPO_ID = "Capblack/snapfood-parsbert-sentiment"
-
 LABEL_MAP = {0: "😊 HAPPY (مثبت)", 1: "😞 SAD (منفی)"}
 
 
@@ -74,11 +69,16 @@ st.write("یک کامنت فارسی وارد کنید تا مدل احساس آ
 with st.spinner("در حال بارگذاری مدل..."):
     tokenizer, model = load_model()
 
-text_input = st.text_area(
-    "متن کامنت را وارد کنید",
-    placeholder="مثلاً: غذا خیلی خوشمزه بود و به موقع رسید...",
-    height=100
-)
+# --------------------------------------------------
+# مدیریت صحیح Session State برای جعبه متن و دکمه‌های نمونه
+# --------------------------------------------------
+if "comment_text" not in st.session_state:
+    st.session_state.comment_text = ""
+
+
+def set_example_text(example_text):
+    st.session_state.comment_text = example_text
+
 
 examples = [
     "غذا خیلی خوشمزه بود و به موقع رسید، عالی بود!",
@@ -89,19 +89,26 @@ examples = [
 st.write("نمونه‌های آماده:")
 cols = st.columns(3)
 for i, ex in enumerate(examples):
-    if cols[i].button(f"نمونه {i+1}", key=f"ex_{i}"):
-        st.session_state["text_input_value"] = ex
+    cols[i].button(
+        f"نمونه {i+1}",
+        key=f"ex_btn_{i}",
+        on_click=set_example_text,
+        args=(ex,)
+    )
 
-if "text_input_value" in st.session_state:
-    text_input = st.session_state["text_input_value"]
+st.text_area(
+    "متن کامنت را وارد کنید",
+    placeholder="مثلاً: غذا خیلی خوشمزه بود و به موقع رسید...",
+    height=100,
+    key="comment_text"
+)
 
-analyze = st.button("تحلیل کن 🔍", type="primary")
-
-if analyze:
-    if not text_input or not text_input.strip():
+if st.button("تحلیل کن 🔍", type="primary"):
+    current_text = st.session_state.comment_text
+    if not current_text or not current_text.strip():
         st.warning("⚠️ لطفاً یک متن وارد کنید.")
     else:
-        label, confidence, prob_dict = predict_sentiment(text_input, tokenizer, model)
+        label, confidence, prob_dict = predict_sentiment(current_text, tokenizer, model)
         st.markdown(f"## نتیجه: {label}")
         st.progress(confidence)
         st.write(f"**درصد اطمینان: {confidence:.2%}**")
